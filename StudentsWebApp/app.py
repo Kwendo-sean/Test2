@@ -14,7 +14,7 @@ from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 
-default_db_uri = 'mysql+mysqlconnector://root:@localhost/PAL_WEB_APP'
+default_db_uri = 'postgresql://seankwendo:1jJ1QjABAXBvKZzUmW6SItnGDUcHqIeY@dpg-d0unjbje5dus739r5eng-a/studentportal'
 database_url = os.environ.get('DATABASE_URL')
 
 if database_url:
