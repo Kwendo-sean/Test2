@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pal.png') }}">
+  <title>Graduation Info</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Public Sans', sans-serif;
+      background-color: #f7f9fc;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-wrapper {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background-color: #c0392b;
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav a {  
+  color: white;  
+  text-decoration: none;  
+  margin-left: 20px;  
+  font-weight: bold;  
+}
+
+
+    main.dashboard {
+      flex: 1;
+      /* display: flex; */ /* Modified for flashed messages */
+      /* justify-content: center; */
+      /* flex-wrap: wrap; */
+      gap: 2rem;
+      padding: 2rem;
+    }
+    .main-content-flex { /* New class for the flex layout of sections */
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+
+
+    .card {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+      min-width: 320px;
+      max-width: 450px;
+    }
+
+    .card h2 {
+      color: #c0392b;
+      margin-top: 0;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    input, select {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .red-btn {
+      background-color: #c0392b;
+      color: white;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .red-btn:hover {
+      background-color: #a93228;
+    }
+
+    footer {
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+      font-size: 0.9rem;
+      margin-top: auto;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    /* Styles for flashed messages */
+    .alert {
+        padding: 10px; 
+        margin-bottom: 10px; 
+        border: 1px solid transparent; 
+        border-radius: 4px;
+        width: 100%; /* Make alert take full width of its container */
+        box-sizing: border-box; /* Include padding and border in width */
+    }
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+    .alert-error {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+    .alert-info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+    }
+    .alert-warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+    }
+
+
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header>
+      <h1>Graduation Page</h1>
+      <nav>
+        <ul>
+          <li><a href="{{ url_for('dashboard') }}">Home</a></li>
+          <li><a href="{{ url_for('student_resources') }}">Resources</a></li>
+          <li><a href="{{ url_for('attendance') }}">Attendance</a></li>
+          <li><a href="{{ url_for('student_graduation') }}">Graduation</a></li>
+          <li><a href="{{ url_for('logout') }}" class="logout">Logout</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="dashboard">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flashed-messages" style="list-style: none; padding: 0; margin: 0 0 1em 0; width: 100%;">
+          {% for category, message in messages %}
+            {# Map 'message' category (default from some extensions like Flask-Login) to 'info' or 'error' if desired #}
+            {% set alert_category = 'error' if category == 'message' and 'invalid' in message.lower() or 'error' in message.lower() else category if category else 'info' %}
+            <div class="alert alert-{{ alert_category }}" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    <div class="main-content-flex"> {# Wrapper for cards #}
+      <section class="card">
+  <h2>Upcoming Graduation</h2>
+  {% if upcoming_graduation_date %}
+    <p><strong>Date:</strong> {{ upcoming_graduation_date }}</p>
+  {% else %}
+    <p><em>No graduation date set.</em></p>
+  {% endif %}
+  <p><strong>Status:</strong> {{ user.graduation_status or "Not Registered" }}</p>
+
+  {% if user.graduation_status != 'Graduated' %} {# Only show form if not already graduated #}
+  <form method="POST" action="{{ url_for('student_graduation') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <label for="role">Register as:</label>
+    <select id="role" name="role" required>
+      <option value="" disabled selected>Select</option>
+      <option value="graduate">Graduate</option>
+      <option value="guest">Guest</option>
+    </select>
+
+    <label for="name">Full Name (as it should appear on certificate/list):</label>
+    <input type="text" id="name" name="name" placeholder="Your Full Name" value="{{ user.name }}" required>
+
+    <button type="submit" class="red-btn">Register</button>
+  </form>
+  {% else %}
+  <p>You are marked as graduated. Congratulations!</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Previous Graduations</h2>
+  {% if graduation_media %}
+    <ul>
+      {% for item in graduation_media %}
+        <li><a href="{{ item.media_link }}" target="_blank">{{ item.media_title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p><em>No recap media available yet.</em></p>
+  {% endif %}
+</section>
+</div> <!-- End of main-content-flex -->
+ <!-- Preddy AI Assistant -->
+<div id="preddy-button" onclick="togglePreddy()">🤖 Talk to Preddy</div>
+
+<div id="preddy-chat" class="hidden">
+  <div class="preddy-header">💬 Preddy • Your Portal Guide</div>
+  <div id="preddy-messages" class="preddy-messages"></div>
+  <div class="preddy-input-area">
+    <input id="preddy-input" type="text" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')sendPreddyMessage()">
+    <button id="preddy-send-btn" onclick="sendPreddyMessage()">Send</button>
+  </div>
+  <div id="preddy-suggestions" class="preddy-suggestions">
+      <!-- Suggestions will be populated here -->
+  </div>
+</div>
+
+<style>
+#preddy-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: all 0.25s ease;
+  border: none;
+}
+
+#preddy-button:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+#preddy-chat {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  width: 360px;
+  max-height: 550px;
+  background: rgba(255, 255, 255, 0.98); /* Slightly more opaque */
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1000;
+  backdrop-filter: blur(8px); /* Reduced blur for performance if needed */
+  border: 1px solid #ddd;
+}
+
+#preddy-chat.hidden {
+  display: none;
+}
+
+.preddy-header {
+  background: #b6382a;
+  color: #fff;
+  padding: 16px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid #a33025;
+  font-family: 'Public Sans', sans-serif; /* Consistent font */
+}
+
+.preddy-messages {
+  padding: 14px;
+  flex-grow: 1;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: 'Public Sans', sans-serif; /* Consistent font */
+}
+
+.preddy-bubble {
+  background: #f4f4f4;
+  border-radius: 14px;
+  padding: 10px 14px;
+  max-width: 85%; /* Slightly wider */
+  word-wrap: break-word;
+  line-height: 1.45; /* Improved readability */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.preddy-bubble.user {
+  align-self: flex-end;
+  background: #e9eaf6; /* Softer user bubble color */
+  color: #333;
+}
+
+.preddy-bubble.ai {
+  align-self: flex-start;
+  background: #fdf4dd;
+  color: #333;
+}
+.preddy-bubble a { color: #c0392b; text-decoration: underline; }
+
+.preddy-input-area {
+  display: flex;
+  border-top: 1px solid #eee;
+}
+
+#preddy-input {
+  border: none;
+  padding: 14px;
+  font-size: 1rem;
+  outline: none;
+  flex-grow: 1; /* Input takes available space */
+  font-family: 'Public Sans', sans-serif; /* Consistent font */
+  background: #fff;
+}
+#preddy-send-btn {
+    background-color: #c0392b;
+    color: white;
+    border: none;
+    padding: 0 15px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+#preddy-send-btn:hover {
+    background-color: #a93228;
+}
+.preddy-suggestions {
+    padding: 5px 10px 10px 10px; /* Padding around suggestions */
+    display: flex;
+    flex-wrap: wrap; /* Allow suggestions to wrap */
+    gap: 8px; /* Space between suggestion bubbles */
+    border-top: 1px solid #eee;
+    background: #f9f9f9;
+}
+
+.suggestion-bubble {
+    background-color: #e9eaf6;
+    color: #333;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.suggestion-bubble:hover {
+    background-color: #d1d4e6;
+}
+
+</style>
+
+
+<script>
+function togglePreddy() {
+  const chat = document.getElementById('preddy-chat');
+  chat.classList.toggle('hidden');
+  if (!chat.classList.contains('hidden')) {
+      displayInitialSuggestions(); // Show suggestions when chat opens
+  }
+}
+
+function displayMessage(text, sender, type = 'text') {
+    const messagesDiv = document.getElementById('preddy-messages');
+    const bubble = document.createElement('div');
+    bubble.classList.add('preddy-bubble', sender);
+    
+    // Sanitize HTML content before adding
+    const a = document.createElement('a'); // Temp element for sanitization
+    a.textContent = text; // Let browser handle text node creation
+    let sanitizedText = a.innerHTML; // Get text as HTML (entities encoded)
+
+    // Basic linkification for display (do not use for security-sensitive contexts)
+    if (type === 'html') { // Only if explicitly marked as HTML from trusted source
+         sanitizedText = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    }
+   
+    bubble.innerHTML = `<b>${sender === 'user' ? 'You' : 'Preddy'}:</b> ${sanitizedText}`;
+    messagesDiv.appendChild(bubble);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+
+function sendPreddyMessage(messageText) {
+  const input = document.getElementById('preddy-input');
+  const message = messageText || input.value.trim(); // Use provided message or input value
+  if (!message) return;
+
+  displayMessage(message, 'user');
+  if(!messageText) input.value = ''; // Clear input only if not from suggestion
+
+  // Show loading indicator
+  const messagesDiv = document.getElementById('preddy-messages');
+  const loadingBubble = document.createElement('div');
+  loadingBubble.classList.add('preddy-bubble', 'ai');
+  loadingBubble.innerHTML = "<b>Preddy:</b> Thinking...";
+  messagesDiv.appendChild(loadingBubble);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+
+  fetch("/ai-assistant", {
+    method: "POST",
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'}, // Added CSRF token
+    body: JSON.stringify({ message })
+  })
+  .then(res => res.json())
+  .then(data => {
+    messagesDiv.removeChild(loadingBubble); // Remove loading
+    displayMessage(data.reply, 'ai', 'html'); // Treat reply as potentially containing HTML for links
+    if (data.suggestions && data.suggestions.length > 0) {
+        populateSuggestions(data.suggestions);
+    } else {
+        clearSuggestions();
+    }
+  })
+  .catch((error) => {
+    messagesDiv.removeChild(loadingBubble); // Remove loading
+    console.error("Preddy AI Error:", error);
+    displayMessage("⚠️ Sorry, I couldn't connect to the assistant right now.", 'ai');
+    clearSuggestions();
+  });
+}
+
+function populateSuggestions(suggestions) {
+    const suggestionsDiv = document.getElementById('preddy-suggestions');
+    suggestionsDiv.innerHTML = ''; // Clear old suggestions
+    suggestions.forEach(suggestionText => {
+        const bubble = document.createElement('div');
+        bubble.classList.add('suggestion-bubble');
+        bubble.textContent = suggestionText;
+        bubble.onclick = () => sendPreddyMessage(suggestionText); // Send suggestion as message
+        suggestionsDiv.appendChild(bubble);
+    });
+}
+function clearSuggestions() {
+    const suggestionsDiv = document.getElementById('preddy-suggestions');
+    suggestionsDiv.innerHTML = '';
+}
+
+
+function displayInitialSuggestions() {
+    // Example: Fetch initial/default suggestions or use a predefined list
+    const initialSuggestions = ["What's my fee balance?", "When is my next class?", "Show my attendance"];
+    populateSuggestions(initialSuggestions);
+}
+
+// Optional: Load initial suggestions when chat is first made visible
+// or after a welcome message from Preddy.
+// For simplicity, we call it when chat opens if no other suggestions are loaded.
+
+</script>
+
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Predictive Analytics Lab</p>
+    </footer>
+  </div>
+</body>
+</html>
