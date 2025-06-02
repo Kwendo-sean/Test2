@@ -12,9 +12,16 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf.csrf import CSRFProtect
 
-app = Flask(__name__)
+import time
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.info("STARTUP: Flask application initialization begins...")
 
-default_db_uri = 'postgresql://seankwendo:1jJ1QjABAXBvKZzUmW6SItnGDUcHqIeY@dpg-d0unjbje5dus739r5eng-a/studentportal'
+app = Flask(__name__)
+logger.info("STARTUP: Flask app object created.")
+
+default_db_uri = 'postgresql://user:password@localhost/default_db' # Updated fallback URI
 database_url = os.environ.get('DATABASE_URL')
 
 if database_url:
@@ -32,12 +39,20 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = default_db_uri
     app.logger.info("Using default local MySQL database.")
 
+logger.info(f"STARTUP: SQLALCHEMY_DATABASE_URI is configured to: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
 gpt_pipeline = None
+logger.info("STARTUP: AI model loading initiated (google/flan-t5-small)...")
+model_load_start_time = time.time()
 try:
     gpt_pipeline = pipeline("text2text-generation", model="google/flan-t5-small")
-    app.logger.info("Successfully loaded Flan T5 model for AI assistant.")
+    model_load_duration = time.time() - model_load_start_time
+    logger.info(f"STARTUP: AI model loaded successfully in {model_load_duration:.2f} seconds.")
+    app.logger.info("Successfully loaded Flan T5 model for AI assistant.") # Original app log
 except Exception as e:
-    gpt_pipeline = None
+    model_load_duration = time.time() - model_load_start_time
+    logger.error(f"STARTUP: AI model loading failed after {model_load_duration:.2f} seconds. Error: {e}", exc_info=True)
+    gpt_pipeline = None # Ensure it's None if loading failed
+    # Original app logs for failure are already here, which is fine.
     app.logger.error(f"Failed to load Flan T5 model for AI assistant: {e}", exc_info=True)
     app.logger.warning("AI assistant features will be limited or unavailable.")
 
@@ -49,6 +64,7 @@ if app.secret_key == 'dev_fallback_key_123!@#_do_not_use_in_prod':
 csrf = CSRFProtect(app)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+logger.info("STARTUP: SQLAlchemy object 'db' initialized.") # Adding this one back
 
 COURSES = {
     "Cyber Security": "CYB", "Data Science": "DAT", "PowerBI": "POW",
@@ -123,6 +139,8 @@ class GraduationInfo(db.Model):
     media_title = db.Column(db.String(100))
     media_link = db.Column(db.String(200))
 
+logger.info("STARTUP: Module-level database operations (db.create_all(), default admin) initiated...")
+db_ops_start_time = time.time()
 with app.app_context():
     db.create_all()
     if not Admin.query.filter_by(email='timoriedo@gmail.com').first():
@@ -130,6 +148,8 @@ with app.app_context():
         default_admin.set_password('12345')
         db.session.add(default_admin)
         db.session.commit()
+db_ops_duration = time.time() - db_ops_start_time
+logger.info(f"STARTUP: Module-level database operations completed in {db_ops_duration:.2f} seconds.")
 
 def generate_admission_number(course, cohort):
     prefix = COURSES.get(course, "XXX")
@@ -738,5 +758,7 @@ def ai_assistant():
     })
 
 if __name__ == '__main__':
+    logger.info("STARTUP: Reached __main__ block (direct execution, not via Gunicorn).")
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    logger.info(f"STARTUP: Flask development server debug mode is {'ON' if debug_mode else 'OFF'}.")
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=debug_mode)
