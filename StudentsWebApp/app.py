@@ -5,6 +5,7 @@ from flask import jsonify
 import wikipedia
 from transformers import pipeline
 import re
+import enum
 import random
 from dateutil.parser import parse
 import math
@@ -139,11 +140,15 @@ class Resource(db.Model):
     course = db.Column(db.String(100))
     cohort = db.Column(db.String(10))
 
+
+class RoleEnum(enum.Enum):
+    GRADUATE = 'graduate'
+    GUEST = 'guest'
 class GraduationRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_email = db.Column(db.String(100), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.Enum('graduate', 'guest'), nullable=False)
+    role = db.Column(db.Enum(RoleEnum, name="role_enum"), nullable=False)
     date_registered = db.Column(db.DateTime, default=datetime.utcnow)
 
 class GraduationInfo(db.Model):
