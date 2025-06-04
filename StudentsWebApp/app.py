@@ -43,18 +43,31 @@ logger.info(f"STARTUP: SQLALCHEMY_DATABASE_URI is configured to: {app.config.get
 gpt_pipeline = None
 logger.info("STARTUP: AI model loading initiated (google/flan-t5-small)...")
 model_load_start_time = time.time()
-try:
-    gpt_pipeline = pipeline("text2text-generation", model="google/flan-t5-small")
-    model_load_duration = time.time() - model_load_start_time
-    logger.info(f"STARTUP: AI model loaded successfully in {model_load_duration:.2f} seconds.")
-    app.logger.info("Successfully loaded Flan T5 model for AI assistant.") # Original app log
-except Exception as e:
-    model_load_duration = time.time() - model_load_start_time
-    logger.error(f"STARTUP: AI model loading failed after {model_load_duration:.2f} seconds. Error: {e}", exc_info=True)
-    gpt_pipeline = None # Ensure it's None if loading failed
-    # Original app logs for failure are already here, which is fine.
-    app.logger.error(f"Failed to load Flan T5 model for AI assistant: {e}", exc_info=True)
-    app.logger.warning("AI assistant features will be limited or unavailable.")
+# try:
+#     gpt_pipeline = pipeline("text2text-generation", model="google/flan-t5-small")
+#     model_load_duration = time.time() - model_load_start_time
+#     logger.info(f"STARTUP: AI model loaded successfully in {model_load_duration:.2f} seconds.")
+#     app.logger.info("Successfully loaded Flan T5 model for AI assistant.") # Original app log
+# except Exception as e:
+#     model_load_duration = time.time() - model_load_start_time
+#     logger.error(f"STARTUP: AI model loading failed after {model_load_duration:.2f} seconds. Error: {e}", exc_info=True)
+#     gpt_pipeline = None # Ensure it's None if loading failed
+#     # Original app logs for failure are already here, which is fine.
+#     app.logger.error(f"Failed to load Flan T5 model for AI assistant: {e}", exc_info=True)
+#     app.logger.warning("AI assistant features will be limited or unavailable.")
+
+def dummy_text_generator(*args, **kwargs):
+    # Simulate the structure of the pipeline output or return a message
+    logger.warning("AI MODEL STUB: Using dummy text generator. AI features will not work.")
+    # Example: if pipeline returns a list of dicts like [{'generated_text': '...'}]
+    # This handles both single string input and list of strings input to the pipeline
+    input_text = args[0] if args else ""
+    if isinstance(input_text, list):
+        return [{"generated_text": "AI model is currently disabled due to resource constraints."}] * len(input_text)
+    return [{"generated_text": "AI model is currently disabled due to resource constraints."}]
+
+gpt_pipeline = dummy_text_generator
+logger.info("STARTUP: Using STUBBED (dummy) AI model to save memory.")
 
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_fallback_key_123!@#_do_not_use_in_prod')
 if app.secret_key == 'dev_fallback_key_123!@#_do_not_use_in_prod':

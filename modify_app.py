@@ -29,13 +29,13 @@ while line_idx < len(lines):
     if not imports_added and ('app = Flask(__name__)' in line or '@app.route' in line or 'class User(db.Model)' in line):
         output_lines.extend(logging_imports)
         imports_added = True
-    
+
     output_lines.append(line)
 
     if 'app = Flask(__name__)' in line and not app_created_logged:
         output_lines.append("logger.info(\"STARTUP: Flask app object created.\")\n")
         app_created_logged = True
-    
+
     # Check for database URI configuration
     if "app.config['SQLALCHEMY_DATABASE_URI']" in line and "if database_url:" in lines[line_idx-1]: # More specific context
         output_lines.append("logger.info(f\"STARTUP: SQLALCHEMY_DATABASE_URI set to: {app.config['SQLALCHEMY_DATABASE_URI']}\")\n")
@@ -50,7 +50,7 @@ while line_idx < len(lines):
         # The line "gpt_pipeline = None" might appear before, we want the actual call
         # Insert before the try block for model loading
         # We need to find the "try:" associated with this pipeline call
-        
+
         # Search backwards for "gpt_pipeline = None" to insert before its try block
         # This is still heuristic. A better way is to find the 'try:' for the pipeline.
         # Let's assume the structure:
@@ -70,33 +70,33 @@ while line_idx < len(lines):
         # Find the 'try:' line associated with 'gpt_pipeline = pipeline(...)'
         # This requires looking ahead from 'gpt_pipeline = None' or finding the try block directly.
         # The original script's logic for model_loading_logged was too simple.
-        
+
         # Let's find the "try:" that directly precedes the pipeline call.
-        # This means modifying a few lines back from the current 
-        
+        # This means modifying a few lines back from the current
+
         # Attempt to find the  statement for model loading
         try_line_offset = -1
         for i in range(len(output_lines) - 2, max(0, len(output_lines) - 5), -1):
             if output_lines[i].strip() == "try:":
                 try_line_offset = i
                 break
-        
+
         if try_line_offset != -1:
             # Insert logging before the try block
             insert_point = try_line_offset
             output_lines.insert(insert_point, "logger.info(\"STARTUP: Attempting to load AI model 'google/flan-t5-small'...\")\n")
             output_lines.insert(insert_point + 1, "model_load_start_time = time.time()\n")
-            
+
             # The original 'try:' is now at output_lines[insert_point + 2]
             # The line with 'gpt_pipeline = pipeline(...)' is output_lines[-1] (the one just added)
             # We need to add logging after it and the except block
-            
+
             # This is becoming complex; the original script's approach of finding 'pipeline(' and wrapping it
             # was better if the variable name was correct and indentation handled.
             # Let's revert to a simpler strategy: add log after the line if successful, or in except.
             # This means we need to find the 'except Exception as e:' for this try block.
-            
-            # The current line is the one with 
+
+            # The current line is the one with
             output_lines.append("    logger.info(f\"STARTUP: AI model loaded successfully in {time.time() - model_load_start_time:.2f} seconds.\")\n")
             model_loading_logged = True # Mark as handled
 
@@ -125,13 +125,13 @@ while line_idx < len(lines):
     # with app.app_context():
     #    db.create_all()
     #    if not Admin.query... (this part is also DB operation)
-    
+
     if 'with app.app_context():' in line:
         # Check if next non-empty line is db.create_all()
         next_code_line_idx = line_idx + 1
         while next_code_line_idx < len(lines) and lines[next_code_line_idx].strip() == "":
             next_code_line_idx += 1
-        
+
         if next_code_line_idx < len(lines) and 'db.create_all()' in lines[next_code_line_idx]:
             if not db_create_all_logged_module_level: # Ensure only one set of logs for this block
                 output_lines.append("logger.info(\"STARTUP: Entering app_context for module-level DB operations (db.create_all(), default admin)...\")\n")
@@ -139,7 +139,7 @@ while line_idx < len(lines):
                 # The db.create_all() and subsequent admin creation will execute.
                 # We need to log *after* the 'with' block finishes.
                 # This requires identifying the end of the 'with' block.
-                
+
                 # This is difficult with line-based processing.
                 # For now, just log the start. Completion log would need explicit placement
                 # or more advanced parsing.
@@ -157,7 +157,7 @@ while line_idx < len(lines):
                  break # End of main block
             main_block_lines.append(lines[temp_main_idx])
             temp_main_idx +=1
-        
+
         for i, main_line in enumerate(main_block_lines):
             if "app.run(" in main_line:
                 # Insert log before app.run() in the collected main_block_lines
@@ -189,7 +189,7 @@ if db_create_all_logged_module_level: # Means we logged the start
              # Get indent of the line after 'with'
              if l_idx + 1 < len(output_lines):
                 original_indent = len(output_lines[l_idx+1]) - len(output_lines[l_idx+1].lstrip())
-        
+
         if in_db_block and not l_content.startswith(" ") and not l_content.startswith("\t") and            not l_content.strip() == "" and not l_content.strip().startswith("with app.app_context():") and            not "db_ops_module_start_time =" in l_content and            not "logger.info(\"STARTUP: Entering app_context for module-level DB operations" in l_content and            (len(l_content) - len(l_content.lstrip())) < original_indent and original_indent != -1 :
             # Line is outdented relative to the block, and not part of the logging itself
             final_output_lines.insert(-1, f"logger.info(\"STARTUP: Module-level DB operations (db.create_all(), default admin) finished in {{time.time() - db_ops_module_start_time:.2f}} seconds.\")\n")
@@ -202,4 +202,3 @@ with open(app_py_path, 'w') as f:
     f.writelines(output_lines)
 
 print(f"Finished processing {app_py_path}")
-
